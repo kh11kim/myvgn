@@ -1,0 +1,7 @@
+setup.py
+src/myvgn/__init__.py
+src/myvgn/a.py
+src/myvgn.egg-info/PKG-INFO
+src/myvgn.egg-info/SOURCES.txt
+src/myvgn.egg-info/dependency_links.txt
+src/myvgn.egg-info/top_level.txt
