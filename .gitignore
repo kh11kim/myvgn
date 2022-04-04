@@ -7,3 +7,5 @@ __pycache__/
 
 data/datasets/
 data/raw/
+data/experiments/
+data/runs/

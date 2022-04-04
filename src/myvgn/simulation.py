@@ -5,7 +5,7 @@ import numpy as np
 import pybullet
 
 from myvgn.grasp import Label
-from myvgn.perception import CameraIntrinsic, TSDFVolume
+from myvgn.perception import CameraIntrinsic, TSDFVolume, camera_on_sphere
 from myvgn.utils import btsim, workspace_lines
 from myvgn.utils.transform import Rotation, Transform
 
@@ -182,6 +182,34 @@ class GraspSim(object):
             high_res_tsdf.integrate(depth_img, self.camera.intrinsic, extrinsic)
 
         return tsdf, high_res_tsdf.get_cloud(), timing
+
+    def render_images(self, n):
+        height, width = self.camera.intrinsic.height, self.camera.intrinsic.width
+        origin = Transform(Rotation.identity(), np.r_[self.size / 2, self.size / 2, 0.0])
+
+        extrinsics = np.empty((n, 7), np.float32)
+        depth_imgs = np.empty((n, height, width), np.float32)
+
+        thetas = np.array([
+            -np.pi/3, -np.pi/3, -np.pi/3, -np.pi/3, 
+            0.05, 0.05, 0.05, 0.05, 
+            np.pi/3, np.pi/3, np.pi/3, np.pi/3
+        ])
+        phis = np.array([
+            0, np.pi/2, np.pi, np.pi*3/2, 
+            0, np.pi/2, np.pi, np.pi*3/2,
+            0, np.pi/2, np.pi, np.pi*3/2,
+        ]) + np.pi/6
+        for i in range(n):
+            r = np.random.uniform(1.6, 2.4) * self.size
+
+            extrinsic = camera_on_sphere(origin, r, thetas[i], phis[i])
+            depth_img = self.camera.render(extrinsic)[1]
+
+            extrinsics[i] = extrinsic.to_list()
+            depth_imgs[i] = depth_img
+
+        return depth_imgs, extrinsics
 
     def execute_grasp(self, grasp, remove=True, allow_contact=False):
         T_world_grasp = grasp.pose
