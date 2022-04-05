@@ -8,14 +8,16 @@ from myvgn.grasp import Grasp, Label
 import scipy.signal as signal
 from tqdm import tqdm
 from pathlib import Path
+from mpi4py import MPI
 
 GRASPS_PER_SCENE = 120
 
 def main(root: str, total_grasps: int, gui: bool):
-    (root / "scenes").mkdir(parents=True, exist_ok=True)
+    workers = MPI.COMM_WORLD.Get_size()
+    rank = MPI.COMM_WORLD.Get_rank()
+    grasp_per_worker = total_grasps // workers
+    pbar = tqdm(total=grasp_per_worker, disable=rank!=0)
     
-    pbar = tqdm(total=(total_grasps // GRASPS_PER_SCENE)*GRASPS_PER_SCENE)
-
     #make sim
     sim = GraspSim(
         scene="air",
@@ -24,15 +26,20 @@ def main(root: str, total_grasps: int, gui: bool):
         seed=777
     )
     finger_depth = sim.gripper.finger_depth  # 0.05
-    write_setup(
-        root,
-        sim.size,
-        sim.camera.intrinsic,
-        sim.gripper.max_opening_width,
-        sim.gripper.finger_depth,
-    )
+
+    # mpi
+    if rank == 0:
+        (root / "scenes").mkdir(parents=True, exist_ok=True)
+        write_setup(
+            root,
+            sim.size,
+            sim.camera.intrinsic,
+            sim.gripper.max_opening_width,
+            sim.gripper.finger_depth,
+        )
     
-    for _ in range(total_grasps // GRASPS_PER_SCENE):
+
+    for _ in range(grasp_per_worker // GRASPS_PER_SCENE):
         sim.reset(object_count=1)
         sim.save_state()
         depth_imgs, extrinsics = render_images(sim, 12)
